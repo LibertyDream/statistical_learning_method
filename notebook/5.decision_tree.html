@@ -13417,7 +13417,7 @@ interpreter: 64bit
 <p><strong>数据结构分析与构建</strong></p>
 <p>我们选取最常见的二叉树来实现决策树，回归树损失判定是方差缩减，分类时是信息增益。我们不妨比对一下与白板编程构建二叉树时的异同</p>
 <p>通常我们会先定义一个结点类 <code>Node</code>，成员包括结点存储的值<code>value</code>，指向左子树和右子树根节点的<code>left_child</code>和<code>right_child</code></p>
-<p>决策树中我们一样需要一个结点类<code>DNode</code>，结点的输出<code>value</code>分类树下是预测的某个类别，回归树下是一个浮点数，左右指针成了“是”<code>yes_subtree</code>与“否”<code>no_subtree</code>，此外还多了两个成员，一个判定特征取值，决定左右走向的阈值<code>thredhold</code>，另一个是特征索引<code>feature_i</code></p>
+<p>决策树中我们一样需要一个结点类<code>DNode</code>，结点的输出<code>value</code>分类树下是预测的某个类别，回归树下是一个浮点数，左右指针成了“是”<code>yes_subtree</code>与“否”<code>no_subtree</code>，此外还多了两个成员，一个是判定特征取值，决定左右走向的阈值<code>thredhold</code>，另一个是特征索引<code>feature_i</code></p>
 
 </div>
 </div>
@@ -13496,10 +13496,10 @@ interpreter: 64bit
         <span class="bp">self</span><span class="o">.</span><span class="n">min_impurity</span> <span class="o">=</span> <span class="n">min_impurity</span>
         
         <span class="c1"># 计算增益，分类树下计算信息增益，回归树下计算方差缩减程度</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__cal_impurity</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cal_impurity</span> <span class="o">=</span> <span class="kc">None</span>
         
         <span class="c1"># 计算叶子结点给出的预测 y</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__cal_leaf_val</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cal_leaf_val</span> <span class="o">=</span> <span class="kc">None</span>
         
         <span class="c1"># y 是否经过 one-hot 编码，默认没有(one-dim)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">one_dim</span> <span class="o">=</span> <span class="kc">None</span>
@@ -13541,7 +13541,7 @@ interpreter: 64bit
                         <span class="n">y1</span> <span class="o">=</span> <span class="n">X_y1</span><span class="p">[:,</span> <span class="n">n_features</span><span class="p">:]</span>
                         <span class="n">y2</span> <span class="o">=</span> <span class="n">X_y2</span><span class="p">[:,</span> <span class="n">n_features</span><span class="p">:]</span>
                         
-                        <span class="n">impurity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__cal_impurity</span><span class="p">(</span><span class="n">y_train</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">)</span>
+                        <span class="n">impurity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cal_impurity</span><span class="p">(</span><span class="n">y_train</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">)</span>
                         
                         <span class="k">if</span> <span class="n">impurity</span> <span class="o">&gt;</span> <span class="n">max_impurity</span><span class="p">:</span>
                             <span class="n">max_impurity</span> <span class="o">=</span> <span class="n">impurity</span>
@@ -13562,9 +13562,9 @@ interpreter: 64bit
                             <span class="n">yes_subtree</span><span class="o">=</span><span class="n">yes_subtree</span><span class="p">,</span> <span class="n">no_subtree</span><span class="o">=</span><span class="n">no_subtree</span><span class="p">)</span>
         
         <span class="c1"># 停止划分，已经成为叶子结点了，计算此时的预测输出</span>
-        <span class="n">leaf_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__cal_leaf_val</span><span class="p">(</span><span class="n">y_train</span><span class="p">)</span>
+        <span class="n">leaf_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cal_leaf_val</span><span class="p">(</span><span class="n">y_train</span><span class="p">)</span>
             
-        <span class="k">return</span> <span class="n">DNode</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">aleaf_value</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">DNode</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">leaf_value</span><span class="p">)</span>
     
     <span class="k">def</span> <span class="nf">predict_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">tree</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
         <span class="sd">&#39;&#39;&#39;树tree对样本x的预测,递归实现&#39;&#39;&#39;</span>
@@ -13578,12 +13578,11 @@ interpreter: 64bit
         
         <span class="c1"># 还在内部结点，选择前进方向</span>
         <span class="n">feature_value</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">tree</span><span class="o">.</span><span class="n">feature_i</span><span class="p">]</span>
-        
         <span class="n">goto</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">yes_subtree</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature_value</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature_valuee</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature_value</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature_value</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
             <span class="k">if</span> <span class="n">feature_value</span> <span class="o">&lt;</span> <span class="n">tree</span><span class="o">.</span><span class="n">threshold</span><span class="p">:</span>
                 <span class="n">goto</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">no_subtree</span>
-        <span class="k">elif</span> <span class="n">feature_valuee</span> <span class="o">!=</span> <span class="n">threshold</span><span class="p">:</span>
+        <span class="k">elif</span> <span class="n">feature_value</span> <span class="o">!=</span> <span class="n">tree</span><span class="o">.</span><span class="n">threshold</span><span class="p">:</span>
             <span class="n">goto</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">no_subtree</span>
         
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">predict_value</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">goto</span><span class="p">)</span>
@@ -13656,8 +13655,8 @@ interpreter: 64bit
         <span class="k">return</span> <span class="n">most</span>
     
     <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__cal_impurity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__cal_info_gain</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__cal_leaf_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__majority_vote</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cal_impurity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__cal_info_gain</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cal_leaf_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__majority_vote</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">ClassifyDT</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
 </pre></div>
 
@@ -13720,8 +13719,8 @@ interpreter: 64bit
         <span class="k">return</span> <span class="n">value</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
     
     <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__cal_impurity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__cal_var_reduct</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">__cal_leaf_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__mean</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cal_impurity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__cal_var_reduct</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cal_leaf_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__mean</span>
         <span class="nb">super</span><span class="p">(</span><span class="n">RegressDT</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
 </pre></div>
 
@@ -13729,6 +13728,225 @@ interpreter: 64bit
 </div>
 </div>
 
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong>模型测试</strong></p>
+<p>准备数据集</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[10]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">sklearn.datasets</span> <span class="k">import</span> <span class="n">load_iris</span>
+<span class="kn">from</span> <span class="nn">sklearn.model_selection</span> <span class="k">import</span> <span class="n">train_test_split</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[11]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">create_data</span><span class="p">():</span>
+    <span class="n">iris</span> <span class="o">=</span> <span class="n">load_iris</span><span class="p">();</span>
+    <span class="n">df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">iris</span><span class="o">.</span><span class="n">data</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">iris</span><span class="o">.</span><span class="n">feature_names</span><span class="p">)</span>
+    <span class="n">df</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="n">iris</span><span class="o">.</span><span class="n">target</span>
+    <span class="n">df</span><span class="o">.</span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;sepal length&#39;</span><span class="p">,</span> <span class="s1">&#39;sepal width&#39;</span><span class="p">,</span> <span class="s1">&#39;petal length&#39;</span><span class="p">,</span> <span class="s1">&#39;petal width&#39;</span><span class="p">,</span> <span class="s1">&#39;label&#39;</span><span class="p">]</span>
+    <span class="n">dataset</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">loc</span><span class="p">[(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="o">|</span> <span class="p">(</span><span class="n">df</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span> <span class="o">==</span> <span class="mi">1</span><span class="p">),:]</span>
+    <span class="n">X</span> <span class="o">=</span> <span class="n">dataset</span><span class="o">.</span><span class="n">loc</span><span class="p">[:,</span><span class="s1">&#39;sepal length&#39;</span><span class="p">:</span><span class="s1">&#39;petal width&#39;</span><span class="p">]</span>
+    <span class="n">y</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="s1">&#39;label&#39;</span><span class="p">]</span>
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">X</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">y</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[12]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">create_data</span><span class="p">()</span>
+<span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">test_size</span> <span class="o">=</span> <span class="mf">0.3</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>预测测试</p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[13]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">classifier</span> <span class="o">=</span> <span class="n">ClassifyDT</span><span class="p">()</span>
+<span class="n">classifier</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[14]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">y_pred</span> <span class="o">=</span> <span class="n">classifier</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+<span class="n">correct</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="k">for</span> <span class="n">pred</span><span class="p">,</span> <span class="n">act</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">y_test</span><span class="p">):</span>
+        <span class="k">if</span> <span class="n">pred</span> <span class="o">==</span> <span class="n">act</span><span class="p">:</span>
+            <span class="n">correct</span> <span class="o">+=</span> <span class="mi">1</span>
+<span class="n">correct</span> <span class="o">/</span> <span class="nb">float</span><span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">X_test</span><span class="p">))</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt output_prompt">Out[14]:</div>
+
+
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>0.8333333333333334</pre>
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong>scikit-learn</strong></p>
+
+</div>
+</div>
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[15]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">sklearn.tree</span> <span class="k">import</span> <span class="n">DecisionTreeClassifier</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[16]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">sk_dtc</span> <span class="o">=</span> <span class="n">DecisionTreeClassifier</span><span class="p">()</span>
+<span class="n">sk_dtc</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt output_prompt">Out[16]:</div>
+
+
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>DecisionTreeClassifier(class_weight=None, criterion=&#39;gini&#39;, max_depth=None,
+                       max_features=None, max_leaf_nodes=None,
+                       min_impurity_decrease=0.0, min_impurity_split=None,
+                       min_samples_leaf=1, min_samples_split=2,
+                       min_weight_fraction_leaf=0.0, presort=False,
+                       random_state=None, splitter=&#39;best&#39;)</pre>
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing code_cell rendered">
+<div class="input">
+<div class="prompt input_prompt">In&nbsp;[17]:</div>
+<div class="inner_cell">
+    <div class="input_area">
+<div class=" highlight hl-ipython3"><pre><span></span><span class="n">sk_dtc</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_test</span><span class="p">,</span> <span class="n">y_test</span><span class="p">)</span>
+</pre></div>
+
+    </div>
+</div>
+</div>
+
+<div class="output_wrapper">
+<div class="output">
+
+
+<div class="output_area">
+
+    <div class="prompt output_prompt">Out[17]:</div>
+
+
+
+
+<div class="output_text output_subarea output_execute_result">
+<pre>1.0</pre>
+</div>
+
+</div>
+
+</div>
+</div>
+
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p>因为自行编写的决策树欠缺剪枝优化操作，预测准确率要差一些</p>
+
+</div>
+</div>
 </div>
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
@@ -14053,7 +14271,7 @@ $$
 C_{\alpha}(T_{3})=C(T_{3})+\alpha|T_{3}| &lt; C_{\alpha}(T_{1})
 $$
 与 $T_{1}$ 是最小子树的假设冲突，故当 $\alpha$ 确定时，只存在唯一最小子树</p>
-<p><strong>5.4 证明CART剪枝算法中求出的子树序列 $\{T_{0},T_{1},\ldots,T_{n}\}$ 分别是区间 $\alpha \in [\alpha_{i}, \alpha_{i+1})$ 的最优子树 $T_{\alpha}$，这里 $i=0,1,\ldots,n,\quad 0=\alpha_{0} &lt;\alpha_{1} &lt; \alpha_{2} &lt; \dots &lt; \alpha_{n} &lt; +\infty$ </strong></p>
+<p><strong>5.4 证明CART剪枝算法中求出的子树序列 $\{T_{0},T_{1},\ldots,T_{n}\}$ 分别是区间 $\alpha \in [\alpha_{i}, \alpha_{i+1})$ 的最优子树 $T_{\alpha}$，这里 $i=0,1,\ldots,n,\quad 0=\alpha_{0} &lt;\alpha_{1} &lt; \alpha_{2} &lt; \dots &lt; \alpha_{n} &lt; +\infty$</strong></p>
 <p>证明：</p>
 <p>假设在区间 $\alpha \in [\alpha_{i}, \alpha_{i+1})$ 最优子树不是 $T_{\alpha}$ 而是另一棵子树 $T_{t}$，前者对后者的差异部分为 $T_{d}$。此时有
 $$
