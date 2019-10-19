@@ -2,7 +2,7 @@
 <html>
 <head><meta charset="utf-8" />
 
-<title>8.adaboost</title>
+<title>8.1gbdt</title>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.1.10/require.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.0.3/jquery.min.js"></script>
@@ -13116,68 +13116,46 @@ div#notebook {
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="Adaboost">Adaboost<a class="anchor-link" href="#Adaboost">&#182;</a></h1><p>微观上，提升法（boosting）就是在分类问题中，每次放大错误样本的权重，学习多个分类器，前一个分类器的结果是下一个分类器的输入，如此迭代，最后将这些线性分类器线性组合得到最终分类器。是一个从弱学习算法提升到强学习算法的过程</p>
-<p>宏观上，提升法的代表 Adaboost 算法是模型为加法模型，损失函数为指数函数，学习算法为前向分布算法的二分类学习方法。</p>
-<p><strong>Adaboost 算法描述</strong></p>
-<p>输入：训练数据集$T=\left\{\left(x_{1}, y_{1}\right),\left(x_{2}, y_{2}\right), \cdots,\left(x_{N}, y_{N}\right)\right\}$，其中 $x_{i} \in \mathcal{X} \subseteq \mathbf{R}^{n}, y_{i} \in \mathcal{Y} = \{-1,+1\}$；弱学习算法</p>
-<p>输出：最终分类器 $G(x)$</p>
-<ol>
-<li>初始化数据的权重分布</li>
-</ol>
+<h1 id="&#26799;&#24230;&#25552;&#21319;">&#26799;&#24230;&#25552;&#21319;<a class="anchor-link" href="#&#26799;&#24230;&#25552;&#21319;">&#182;</a></h1><p>回顾一下回归提升树通过前向分步算法求解的过程：
 $$
-D_{1}=\left(w_{11}, \cdots, w_{1 i}, \cdots, w_{1 N}\right), \quad w_{1 i}=\frac{1}{N}, \quad i=1,2, \cdots, N
-$$<ol>
-<li><p>对 $m = 1,2,\ldots,M$</p>
+\begin{array}{l}{f_{0}(x)=0} \\ {f_{m}(x)=f_{m-1}(x)+T\left(x ; \Theta_{m}\right), \quad m=1,2, \cdots, M} \\ {f_{M}(x)=\sum_{m=1}^{M} T\left(x ; \Theta_{m}\right)}\end{array}
+$$
+第 $m$ 步，给定模型 $f(m-1)$ ，求解经验风险极小化
+$$
+\hat{\Theta}_{m}=\arg \min _{\Theta_{m}} \sum_{i=1}^{N} L\left(y_{i}, f_{m-1}\left(x_{i}\right)+T\left(x_{i} ; \Theta_{m}\right)\right)
+$$
+以此得到第 $m$ 棵树的参数，而当选用平方损失函数 $L(y, f(x))=(y-f(x))^{2}$ 时，有
+$$
+\begin{aligned} L\left(y, f_{m-1}(x)+T\left(x ; \Theta_{m}\right)\right) &amp;=\left[y-f_{m-1}(x)-T\left(x ; \Theta_{m}\right)\right]^{2} \\ &amp;=\left[r-T\left(x ; \Theta_{m}\right)\right]^{2} \end{aligned}
+$$
+其中 $r = y- f_{m-1}(x)$，可见回归树只需要拟合残差使得 $r$ 极小即可，很简单也很容易优化，但对于一般损失函数就不太容易了。</p>
+<p>对此人们提出了梯度提升（gradient boosting)的概念，关键是在于将当前模型损失函数的负梯度值作为回归提升树中残差的近似值，拟合出一棵回归树。</p>
+<h2 id="&#19982;&#26799;&#24230;&#19979;&#38477;&#30340;&#27604;&#36739;">&#19982;&#26799;&#24230;&#19979;&#38477;&#30340;&#27604;&#36739;<a class="anchor-link" href="#&#19982;&#26799;&#24230;&#19979;&#38477;&#30340;&#27604;&#36739;">&#182;</a></h2><p>一般的优化思路是 $L(y,f(x))--f = g(x;w)——L(y,f(x);w)$，由损失和模型的关系到损失和模型参数的关系，所以最后结果是求解参数的负梯度更新参数，这也就是梯度下降的思想。</p>
+<p>而梯度上升实质上只有前半部分 $L(y,f(x))--L(y,f(x);f)$ ，不再从参数空间中寻找，而是从函数空间中搜索，降低了优化门槛，极大拓展了模型选择空间。当然依旧是依靠负梯度进行更新。</p>
+<h2 id="GBDT-&#31639;&#27861;&#25551;&#36848;">GBDT &#31639;&#27861;&#25551;&#36848;<a class="anchor-link" href="#GBDT-&#31639;&#27861;&#25551;&#36848;">&#182;</a></h2><p>输入：训练数据集 $T=\left\{\left(x_{1}, y_{1}\right),\left(x_{2}, y_{2}\right), \cdots,\left(x_{N}, y_{N}\right)\right\}$，$x_{i} \in \mathcal{X} \subseteq \mathbf{R}^{n}, y_{i} \in \mathcal{Y} \subseteq \mathbf{R}$；损失函数 $L(y,f(x))$</p>
+<p>输出：回归树 $\hat{f}(x)$</p>
 <ol>
-<li>在权重分布为 $G_m$ 的数据集上学习基本分类器 $G_{m}(x): \mathcal{X} \rightarrow\{-1,+1\}$</li>
-<li>计算 $G_m$ 上的分类误差率  $e_{m}=\sum_{i=1}^{N} P\left(G_{m}\left(x_{i}\right) \neq y_{i}\right)=\sum_{i=1}^{N} w_{m i} I\left(G_{m}\left(x_{i}\right) \neq y_{i}\right)$</li>
-<li>计算 $G_m(x)$ 的系数 $\alpha_{m}=\frac{1}{2} \log \frac{1-e_{m}}{e_{m}}$ ，取自然对数</li>
-<li>更新权重分布</li>
+<li><p>初始化 $f_{0}(x)=\arg \min _{c} \sum_{i=1}^{N} L\left(y_{i}, c\right)$</p>
+</li>
+<li><p>对 $m=1,2,\ldots,M$</p>
+<ol>
+<li>对 $i = 1,2,\ldots,N$，计算</li>
 </ol>
 <p>$$
-\begin{array}{c}{D_{m+1}=\left(w_{m+1,1}, \cdots, w_{m+1, i}, \cdots, w_{m+1, N}\right)} \\ {w_{m+1, i}=\frac{w_{m i}}{Z_{m}} \exp \left(-\alpha_{m} y_{i} G_{m}\left(x_{i}\right)\right), \quad i=1,2, \cdots, N}\end{array}
-$$</p>
-<p>$Z_{m}=\sum_{i=1}^{N} w_{m i} \exp \left(-\alpha_{m} y_{i} G_{m}\left(x_{i}\right)\right)$ 是规范化因子，使 $D_{m+1}$ 成为一个概率分布</p>
-</li>
-<li><p>构建基本分类器的线性组合 $f(x)=\sum_{m=1}^{M} \alpha_{m} G_{m}(x)$，得到最终分类器</p>
-</li>
-</ol>
-$$
-G(x) =\operatorname{sign}(f(x))=\operatorname{sign}\left(\sum_{m=1}^{M} \alpha_{m} G_{m}(x)\right) 
-$$<p>adaboost的两个特点：</p>
-<ul>
-<li>不改变所给数据而是改变数据权值分布，使训练数据对不同分类器起不同作用</li>
-<li>利用基本分类器的线性组合构建最终分类器</li>
-</ul>
-<p><strong>加法模型解释</strong></p>
-<p>当把adaboost视为前向分步算法的一个实现，模型为加法模型 $f(x)=\sum_{m=1}^{M} \beta_{m} b\left(x ; \gamma_{m}\right)$，指数损失函数，每一步实际是在极小化损失函数
-$$
-\left(\beta_{m}, \gamma_{m}\right)=\arg \min _{\beta, \gamma} \sum_{i=1}^{N} L\left(y_{i}, f_{m-1}\left(x_{i}\right)+\beta b\left(x_{i} ; \gamma\right)\right)
-$$
-求取参数 $\beta_{m}, \gamma_{m}$</p>
-<h1 id="&#25552;&#21319;&#26641;">&#25552;&#21319;&#26641;<a class="anchor-link" href="#&#25552;&#21319;&#26641;">&#182;</a></h1><p>提升树是以分类树或回归树为基本分类器的提升方法。前者是二叉分类树用指数损失函数，后者是二叉回归树用平方误差损失函数。分类问题算作是 adaboost 算法的特例，对于回归问题实际是在拟合残差。</p>
-<p>回归树可以表示为 $T(x ; \Theta)=\sum_{j=1}^{J} c_{j} I\left(x \in R_{j}\right)$，$R_j$ 是输入空间 $\mathcal{X}$ 划分出的若干不相交区域之一，$c_j$ 是其上输出常量，$\Theta$ 是决策树参数，表示各划分和各区域上的常数，$J$ 是叶结点数</p>
-<p><strong>回归问题提升树算法</strong></p>
-<p>输入：训练数据集 $T=\left\{\left(x_{1}, y_{1}\right),\left(x_{2}, y_{2}\right), \cdots,\left(x_{N}, y_{N}\right)\right\}$ ，$x_{i} \in \mathcal{X} \subseteq \mathbf{R}^{n}, y_{i} \in \mathcal{Y}  \subseteq \mathbf{R}^{n}$；</p>
-<p>输出：提升树 $f_M(x)$</p>
-<ol>
-<li><p>初始化 $f_0(x) = 0$</p>
-</li>
-<li><p>对 $m = 1,2,\ldots,M$</p>
-<ol>
-<li>在树上计算残差</li>
-</ol>
-<p>$$
-r_{m i}=y_{i}-f_{m-1}\left(x_{i}\right), \quad i=1,2, \cdots, N
+r_{m i}=-\left[\frac{\partial L\left(y_{i}, f\left(x_{i}\right)\right)}{\partial f\left(x_{i}\right)}\right]_{f(x)=f_{m-1}(x)}
 $$</p>
 <ol>
-<li>拟合残差得到回归树 $T(x ; \Theta_m)$</li>
-<li>更新 $f_{m}(x)=f_{m-1}(x)+T\left(x ; \Theta_{m}\right)$</li>
+<li>对 $r_{mi}$ 拟合一个回归树，得到第 $m$ 棵树的结点区域 $R_{m j}, j=1,2, \cdots, J$。</li>
+<li>对 $j=1,2, \cdots, J$，计算 $c_{m j}=\arg \min _{c} \sum_{x_{i} \in R_{m j}} L\left(y_{i}, f_{m-1}\left(x_{i}\right)+c\right)$</li>
+<li>更新 $f_{m}(x)=f_{m-1}(x)+\sum_{j=1}^{J} c_{m j} I\left(x \in R_{m j}\right)$</li>
 </ol>
 </li>
-<li><p>得到问题的提升回归树 $f_{M}(x)=\sum_{m=1}^{M} T\left(x ; \Theta_{m}\right)$</p>
+<li><p>得到回归树</p>
 </li>
 </ol>
+$$
+\hat{f}(x)=f_{M}(x)=\sum_{m=1}^{M} \sum_{j=1}^{J} c_{m j} I\left(x \in R_{m j}\right)
+$$<p>对于2.1步，对于平方损失函数 $L\left(y, f_{m-1}(x)\right)=\frac{1}{2}\left(y-f_{m-1}(x)\right)^{2}$，得到的 $r_m$ 就是残差，对于一般损失函数则是残差的近似</p>
 
 </div>
 </div>
@@ -13185,7 +13163,7 @@ $$</p>
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="&#31639;&#27861;&#23454;&#29616;">&#31639;&#27861;&#23454;&#29616;<a class="anchor-link" href="#&#31639;&#27861;&#23454;&#29616;">&#182;</a></h1><p><strong>导入相关库</strong></p>
+<h2 id="&#31639;&#27861;&#23454;&#29616;">&#31639;&#27861;&#23454;&#29616;<a class="anchor-link" href="#&#31639;&#27861;&#23454;&#29616;">&#182;</a></h2><p><strong>导入相关库</strong></p>
 
 </div>
 </div>
@@ -13195,8 +13173,7 @@ $$</p>
 <div class="prompt input_prompt">In&nbsp;[1]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">math</span>
-<span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
 <span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
 <span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
 
@@ -13266,7 +13243,8 @@ interpreter: 64bit
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><strong>Adaboost 分类树</strong></p>
+<p><strong>导入回归树</strong></p>
+<p>GBDT 的实现依赖于回归树，这里使用<a href="https://libertydream.github.io/statistical_learning_method/notebook/5.decision_tree.html">决策树</a>中实现过的回归树</p>
 
 </div>
 </div>
@@ -13276,23 +13254,16 @@ interpreter: 64bit
 <div class="prompt input_prompt">In&nbsp;[3]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">DecisionTreeStump</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;决策树桩</span>
-<span class="sd">    </span>
-<span class="sd">    label:</span>
-<span class="sd">        样本是正类（+1）还是负类（-1）,默认为正类</span>
-<span class="sd">    feture_index:</span>
-<span class="sd">        分类特征索引</span>
-<span class="sd">    threshold:</span>
-<span class="sd">        划分阈值，低于threshold 归负类，反之为正类</span>
-<span class="sd">    alpha:</span>
-<span class="sd">        分类准确率</span>
-<span class="sd">    &#39;&#39;&#39;</span>
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="mi">1</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">feture_index</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="kc">None</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="kc">None</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">DNode</span><span class="p">:</span>
+    <span class="sd">&quot;&quot;&quot;叶结点或内部结点&quot;&quot;&quot;</span>
+    
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">feature_i</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">threshold</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">value</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+                 <span class="n">yes_subtree</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">no_subtree</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">feature_i</span> <span class="o">=</span> <span class="n">feature_i</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="n">threshold</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">value</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">yes_subtree</span> <span class="o">=</span> <span class="n">yes_subtree</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">no_subtree</span> <span class="o">=</span> <span class="n">no_subtree</span>   
 </pre></div>
 
     </div>
@@ -13305,94 +13276,18 @@ interpreter: 64bit
 <div class="prompt input_prompt">In&nbsp;[4]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">Adaboost</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;自适应提升分类树</span>
-<span class="sd">    </span>
-<span class="sd">        使用高度为 2 的二叉分类树作为基分类器的 adaboost 算法实现</span>
-<span class="sd">        </span>
-<span class="sd">    clf_num:</span>
-<span class="sd">        基分类器数量</span>
-<span class="sd">    &#39;&#39;&#39;</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">divide_on_feature</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">feature_i</span><span class="p">,</span> <span class="n">threshold</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;对选定特征进一步分类，获取独热数据集&#39;&#39;&#39;</span>
+    <span class="n">split_func</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">threshold</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">threshold</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+        <span class="n">split_func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">sample</span><span class="p">:</span><span class="n">sample</span><span class="p">[</span><span class="n">feature_i</span><span class="p">]</span> <span class="o">&gt;=</span> <span class="n">threshold</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">split_func</span> <span class="o">=</span> <span class="k">lambda</span> <span class="n">sample</span><span class="p">:</span><span class="n">sample</span><span class="p">[</span><span class="n">feature_i</span><span class="p">]</span> <span class="o">==</span> <span class="n">threshold</span>
     
-    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">clf_num</span> <span class="o">=</span> <span class="mi">5</span><span class="p">):</span>
-        
-        <span class="bp">self</span><span class="o">.</span><span class="n">clf_num</span> <span class="o">=</span> <span class="n">clf_num</span>
-        
-    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">):</span>
-        
-        <span class="n">n_samples</span><span class="p">,</span> <span class="n">n_features</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
-        
-        <span class="c1"># 初始时样本权重均匀分布</span>
-        <span class="n">weight</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">n_samples</span><span class="p">,</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">n_samples</span><span class="p">))</span>
-        
-        
-        <span class="c1"># 训练各基分类器</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">clfs</span> <span class="o">=</span> <span class="p">[]</span>
-        
-        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">clf_num</span><span class="p">):</span>
-            
-            <span class="n">clf</span> <span class="o">=</span> <span class="n">DecisionTreeStump</span><span class="p">()</span>
-            
-            <span class="n">min_error</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="s1">&#39;inf&#39;</span><span class="p">)</span>
-            
-            <span class="k">for</span> <span class="n">feature_i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_features</span><span class="p">):</span>
-                
-                <span class="n">feature_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">X_train</span><span class="p">[:,</span><span class="n">feature_i</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
-                
-                <span class="n">unique_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">feature_values</span><span class="p">)</span>
-                
-                <span class="k">for</span> <span class="n">threshold</span> <span class="ow">in</span> <span class="n">unique_values</span><span class="p">:</span>
-                    <span class="n">label</span> <span class="o">=</span> <span class="mi">1</span>
-                    
-                    <span class="n">pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">y_train</span><span class="p">))</span>
-                    <span class="n">pred</span><span class="p">[</span><span class="n">X_train</span><span class="p">[:,</span><span class="n">feature_i</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">threshold</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
+    <span class="n">X_1</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">sample</span> <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">X</span> <span class="k">if</span> <span class="n">split_func</span><span class="p">(</span><span class="n">sample</span><span class="p">)])</span>
+    <span class="n">X_2</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">sample</span> <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">X</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">split_func</span><span class="p">(</span><span class="n">sample</span><span class="p">)])</span>
     
-                    <span class="n">err</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">weight</span><span class="p">[</span><span class="n">y_train</span> <span class="o">!=</span> <span class="n">pred</span><span class="p">])</span>
-              
-                    
-                    <span class="c1"># 保证 alpha 和 err 的反比关系，错误率过半则反转类别</span>
-                    <span class="k">if</span> <span class="n">err</span> <span class="o">&gt;</span> <span class="mf">0.5</span><span class="p">:</span>
-                        <span class="n">err</span> <span class="o">=</span> <span class="mi">1</span> <span class="o">-</span> <span class="n">err</span>
-                        <span class="n">label</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
-                       
-                    <span class="c1"># 保留误差最小的特征</span>
-                    <span class="k">if</span> <span class="n">err</span> <span class="o">&lt;</span> <span class="n">min_error</span><span class="p">:</span>
-                        <span class="n">min_error</span> <span class="o">=</span> <span class="n">err</span>
-                        <span class="n">clf</span><span class="o">.</span><span class="n">label</span> <span class="o">=</span> <span class="n">label</span>
-                        <span class="n">clf</span><span class="o">.</span><span class="n">threshold</span> <span class="o">=</span> <span class="n">threshold</span>
-                        <span class="n">clf</span><span class="o">.</span><span class="n">feature_index</span> <span class="o">=</span> <span class="n">feature_i</span>
-            
-            <span class="c1"># 更新分类器权重</span>
-            <span class="n">clf</span><span class="o">.</span><span class="n">alpha</span> <span class="o">=</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">math</span><span class="o">.</span><span class="n">log</span><span class="p">((</span><span class="mi">1</span><span class="o">-</span><span class="n">min_error</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="n">min_error</span> <span class="o">+</span> <span class="mf">1e-10</span><span class="p">))</span>
-            
-            <span class="c1"># 更新样本权重分布</span>
-            <span class="n">pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">y_train</span><span class="p">))</span>
-            <span class="n">neg_index</span> <span class="o">=</span> <span class="p">(</span><span class="n">clf</span><span class="o">.</span><span class="n">label</span> <span class="o">*</span> <span class="n">X_train</span><span class="p">[:,</span><span class="n">clf</span><span class="o">.</span><span class="n">feature_index</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">clf</span><span class="o">.</span><span class="n">label</span> <span class="o">*</span> <span class="n">clf</span><span class="o">.</span><span class="n">threshold</span><span class="p">)</span>
-            <span class="n">pred</span><span class="p">[</span><span class="n">neg_index</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
-            <span class="n">weight</span> <span class="o">*=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">clf</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">y_train</span> <span class="o">*</span> <span class="n">pred</span><span class="p">)</span>
-            <span class="n">weight</span> <span class="o">/=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">weight</span><span class="p">)</span>
-            
-            <span class="bp">self</span><span class="o">.</span><span class="n">clfs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">clf</span><span class="p">)</span>
-            
-    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_test</span><span class="p">):</span>
-        
-        <span class="n">n_samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">X_test</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">n_samples</span><span class="p">,</span> <span class="mi">1</span><span class="p">))</span>
-        
-        <span class="k">for</span> <span class="n">clf</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">clfs</span><span class="p">:</span>
-            
-            <span class="n">pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">y_pred</span><span class="p">))</span>
-            
-            <span class="n">neg_index</span> <span class="o">=</span> <span class="p">(</span><span class="n">clf</span><span class="o">.</span><span class="n">label</span> <span class="o">*</span> <span class="n">X_test</span><span class="p">[:,</span><span class="n">clf</span><span class="o">.</span><span class="n">feature_index</span><span class="p">]</span> <span class="o">&lt;</span> <span class="n">clf</span><span class="o">.</span><span class="n">label</span> <span class="o">*</span> <span class="n">clf</span><span class="o">.</span><span class="n">threshold</span><span class="p">)</span>
-            
-            <span class="n">pred</span><span class="p">[</span><span class="n">neg_index</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
-            
-            <span class="n">y_pred</span> <span class="o">+=</span> <span class="n">clf</span><span class="o">.</span><span class="n">alpha</span> <span class="o">*</span> <span class="n">pred</span>
-            
-        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sign</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)</span><span class="o">.</span><span class="n">flatten</span><span class="p">()</span>
-        
-        <span class="k">return</span> <span class="n">y_pred</span>
-        
+    <span class="k">return</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span><span class="n">X_1</span><span class="p">,</span> <span class="n">X_2</span><span class="p">])</span>
 </pre></div>
 
     </div>
@@ -13400,38 +13295,120 @@ interpreter: 64bit
 </div>
 
 </div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h1 id="&#27169;&#22411;&#27979;&#35797;">&#27169;&#22411;&#27979;&#35797;<a class="anchor-link" href="#&#27169;&#22411;&#27979;&#35797;">&#182;</a></h1><p><strong>导入数据</strong></p>
-
-</div>
-</div>
-</div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[5]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">sklearn.datasets</span> <span class="k">import</span> <span class="n">load_digits</span>
-<span class="kn">from</span> <span class="nn">sklearn.model_selection</span> <span class="k">import</span> <span class="n">train_test_split</span>
-
-<span class="k">def</span> <span class="nf">create_data</span><span class="p">():</span>
-    <span class="n">data</span> <span class="o">=</span> <span class="n">load_digits</span><span class="p">()</span>
-    <span class="n">X</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span>
-    <span class="n">y</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">target</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">DecisionTree</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&quot;&quot;&quot;回归树和分类树的父类&quot;&quot;&quot;</span>
     
-    <span class="n">digit_one</span> <span class="o">=</span> <span class="mi">1</span>
-    <span class="n">digit_two</span> <span class="o">=</span> <span class="mi">8</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">min_split_num</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">min_impurity</span><span class="o">=</span><span class="mf">1e-7</span><span class="p">):</span>
+        
+        <span class="c1"># 决策树根节点</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="kc">None</span>
+        
+        <span class="c1"># 最小切分单位大小，样本数少于该值不进行进一步分割</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_split_num</span> <span class="o">=</span> <span class="n">min_split_num</span>
+        
+        <span class="c1"># 最小增益值，当划分带来的增益小于该值时停止生成</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_impurity</span> <span class="o">=</span> <span class="n">min_impurity</span>
+        
+        <span class="c1"># 计算增益，分类树下计算信息增益，回归树下计算方差缩减程度</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cal_impurity</span> <span class="o">=</span> <span class="kc">None</span>
+        
+        <span class="c1"># 计算叶子结点给出的预测 y</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cal_leaf_val</span> <span class="o">=</span> <span class="kc">None</span>
+        
+        <span class="c1"># y 是否经过 one-hot 编码，默认没有(one-dim)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one_dim</span> <span class="o">=</span> <span class="kc">None</span>
+        
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">one_dim</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">y_train</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">root</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__build_tree</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
     
-    <span class="n">idx</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="n">digit_one</span><span class="p">)[</span><span class="mi">0</span><span class="p">],</span><span class="n">np</span><span class="o">.</span><span class="n">where</span><span class="p">(</span><span class="n">y</span> <span class="o">==</span> <span class="n">digit_two</span><span class="p">)[</span><span class="mi">0</span><span class="p">])</span>
-    <span class="n">y</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">target</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+    <span class="k">def</span> <span class="nf">__build_tree</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;递归创建一棵决策树</span>
+<span class="sd">        </span>
+<span class="sd">        对 X 按特征进行划分，比对不同划分选择下的误差以进行最优分类</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">max_impurity</span> <span class="o">=</span> <span class="mi">0</span>
+        <span class="n">best_criteria</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># 最优划分特征</span>
+        <span class="n">best_sets</span> <span class="o">=</span> <span class="kc">None</span>  <span class="c1"># 最优划分形成的子集集合</span>
+        
+        <span class="c1"># 拼接成习惯的训练集形式</span>
+        <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">y_train</span><span class="p">))</span> <span class="o">==</span> <span class="mi">1</span><span class="p">:</span>
+            <span class="n">y_train</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">y_train</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        <span class="n">train_set</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">((</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">),</span><span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        
+        <span class="n">n_samples</span><span class="p">,</span> <span class="n">n_features</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+        
+        <span class="k">if</span> <span class="n">n_samples</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_split_num</span><span class="p">:</span> <span class="c1"># 停止条件之一</span>
+            
+            <span class="k">for</span> <span class="n">feature_i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_features</span><span class="p">):</span>
+                
+                <span class="c1"># 当前特征可取哪些值</span>
+                <span class="n">feature_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">X_train</span><span class="p">[:,</span><span class="n">feature_i</span><span class="p">],</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+                <span class="n">unique_values</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">feature_values</span><span class="p">)</span>
+                
+                <span class="c1"># 计算以当前特征为划分标准时对应的误差</span>
+                <span class="k">for</span> <span class="n">threshold</span> <span class="ow">in</span> <span class="n">unique_values</span><span class="p">:</span>
+                    
+                    <span class="n">X_y1</span><span class="p">,</span> <span class="n">X_y2</span> <span class="o">=</span> <span class="n">divide_on_feature</span><span class="p">(</span><span class="n">train_set</span><span class="p">,</span> <span class="n">feature_i</span><span class="p">,</span> <span class="n">threshold</span><span class="p">)</span>
+                    
+                    <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_y1</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="n">X_y2</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">0</span><span class="p">:</span>  <span class="c1"># 还有划分的必要</span>
+                        <span class="n">y1</span> <span class="o">=</span> <span class="n">X_y1</span><span class="p">[:,</span> <span class="n">n_features</span><span class="p">:]</span>
+                        <span class="n">y2</span> <span class="o">=</span> <span class="n">X_y2</span><span class="p">[:,</span> <span class="n">n_features</span><span class="p">:]</span>
+                        
+                        <span class="n">impurity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cal_impurity</span><span class="p">(</span><span class="n">y_train</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">)</span>
+                        
+                        <span class="k">if</span> <span class="n">impurity</span> <span class="o">&gt;</span> <span class="n">max_impurity</span><span class="p">:</span>
+                            <span class="n">max_impurity</span> <span class="o">=</span> <span class="n">impurity</span>
+                            <span class="n">best_criteria</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;feature_i&quot;</span><span class="p">:</span><span class="n">feature_i</span><span class="p">,</span> <span class="s2">&quot;threshold&quot;</span><span class="p">:</span><span class="n">threshold</span><span class="p">}</span>
+                            <span class="n">best_sets</span> <span class="o">=</span> <span class="p">{</span>
+                                <span class="s2">&quot;yes_X&quot;</span><span class="p">:</span> <span class="n">X_y1</span><span class="p">[:,</span> <span class="p">:</span> <span class="n">n_features</span><span class="p">],</span>
+                                <span class="s2">&quot;yes_y&quot;</span><span class="p">:</span> <span class="n">X_y1</span><span class="p">[:,</span> <span class="n">n_features</span> <span class="p">:</span> <span class="p">],</span>
+                                <span class="s2">&quot;no_X&quot;</span><span class="p">:</span> <span class="n">X_y2</span><span class="p">[:,</span> <span class="p">:</span> <span class="n">n_features</span><span class="p">],</span>
+                                <span class="s2">&quot;no_y&quot;</span><span class="p">:</span> <span class="n">X_y2</span><span class="p">[:,</span> <span class="n">n_features</span> <span class="p">:</span> <span class="p">]</span>
+                            <span class="p">}</span>
+                            
+                <span class="c1"># 还值得继续生成树</span>
+                <span class="k">if</span> <span class="n">max_impurity</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_impurity</span><span class="p">:</span>
+                
+                    <span class="n">yes_subtree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__build_tree</span><span class="p">(</span><span class="n">best_sets</span><span class="p">[</span><span class="s2">&quot;yes_X&quot;</span><span class="p">],</span><span class="n">best_sets</span><span class="p">[</span><span class="s2">&quot;yes_y&quot;</span><span class="p">])</span>
+                    <span class="n">no_subtree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__build_tree</span><span class="p">(</span><span class="n">best_sets</span><span class="p">[</span><span class="s2">&quot;no_X&quot;</span><span class="p">],</span><span class="n">best_sets</span><span class="p">[</span><span class="s2">&quot;no_y&quot;</span><span class="p">])</span>
+                    <span class="k">return</span> <span class="n">DNode</span><span class="p">(</span><span class="n">feature_i</span><span class="o">=</span><span class="n">best_criteria</span><span class="p">[</span><span class="s2">&quot;feature_i&quot;</span><span class="p">],</span> <span class="n">threshold</span><span class="o">=</span><span class="n">best_criteria</span><span class="p">[</span><span class="s2">&quot;threshold&quot;</span><span class="p">],</span>
+                            <span class="n">yes_subtree</span><span class="o">=</span><span class="n">yes_subtree</span><span class="p">,</span> <span class="n">no_subtree</span><span class="o">=</span><span class="n">no_subtree</span><span class="p">)</span>
+        
+        <span class="c1"># 停止划分，已经成为叶子结点了，计算此时的预测输出</span>
+        <span class="n">leaf_value</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_cal_leaf_val</span><span class="p">(</span><span class="n">y_train</span><span class="p">)</span>
+            
+        <span class="k">return</span> <span class="n">DNode</span><span class="p">(</span><span class="n">value</span><span class="o">=</span><span class="n">leaf_value</span><span class="p">)</span>
     
-    <span class="n">y</span><span class="p">[</span><span class="n">y</span> <span class="o">==</span> <span class="n">digit_one</span><span class="p">]</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span>
-    <span class="n">y</span><span class="p">[</span><span class="n">y</span> <span class="o">==</span> <span class="n">digit_two</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
-    <span class="n">X</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">data</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+    <span class="k">def</span> <span class="nf">predict_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">x</span><span class="p">,</span> <span class="n">tree</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+        <span class="sd">&#39;&#39;&#39;树tree对样本x的预测,递归实现&#39;&#39;&#39;</span>
+        
+        <span class="k">if</span> <span class="n">tree</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">root</span>
+        
+        <span class="c1"># 抵达叶子结点，给出预测</span>
+        <span class="k">if</span> <span class="n">tree</span><span class="o">.</span><span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">tree</span><span class="o">.</span><span class="n">value</span>
+        
+        <span class="c1"># 还在内部结点，选择前进方向</span>
+        <span class="n">feature_value</span> <span class="o">=</span> <span class="n">x</span><span class="p">[</span><span class="n">tree</span><span class="o">.</span><span class="n">feature_i</span><span class="p">]</span>
+        <span class="n">goto</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">yes_subtree</span>
+        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature_value</span><span class="p">,</span> <span class="nb">int</span><span class="p">)</span> <span class="ow">or</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">feature_value</span><span class="p">,</span> <span class="nb">float</span><span class="p">):</span>
+            <span class="k">if</span> <span class="n">feature_value</span> <span class="o">&lt;</span> <span class="n">tree</span><span class="o">.</span><span class="n">threshold</span><span class="p">:</span>
+                <span class="n">goto</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">no_subtree</span>
+        <span class="k">elif</span> <span class="n">feature_value</span> <span class="o">!=</span> <span class="n">tree</span><span class="o">.</span><span class="n">threshold</span><span class="p">:</span>
+            <span class="n">goto</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">no_subtree</span>
+        
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">predict_value</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">goto</span><span class="p">)</span>
     
-    <span class="k">return</span> <span class="n">X</span><span class="p">,</span> <span class="n">y</span>
+    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_test</span><span class="p">):</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="p">[</span><span class="bp">self</span><span class="o">.</span><span class="n">predict_value</span><span class="p">(</span><span class="n">sample</span><span class="p">)</span> <span class="k">for</span> <span class="n">sample</span> <span class="ow">in</span> <span class="n">X_test</span><span class="p">]</span>
+        <span class="k">return</span> <span class="n">y_pred</span>
 </pre></div>
 
     </div>
@@ -13444,30 +13421,47 @@ interpreter: 64bit
 <div class="prompt input_prompt">In&nbsp;[6]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">X</span><span class="p">,</span> <span class="n">y</span> <span class="o">=</span> <span class="n">create_data</span><span class="p">()</span>
-<span class="n">X_train</span><span class="p">,</span> <span class="n">X_test</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y_test</span> <span class="o">=</span> <span class="n">train_test_split</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">test_size</span> <span class="o">=</span> <span class="mf">0.3</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">cal_var</span><span class="p">(</span><span class="n">X</span><span class="p">):</span>
+    <span class="n">mean</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ones</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">X</span><span class="p">))</span> <span class="o">*</span> <span class="n">X</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
+    <span class="n">n_samples</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">shape</span><span class="p">(</span><span class="n">X</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">var</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="n">n_samples</span><span class="p">)</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">diag</span><span class="p">((</span><span class="n">X</span><span class="o">-</span><span class="n">mean</span><span class="p">))</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">X</span> <span class="o">-</span> <span class="n">mean</span><span class="p">)</span>
+    
+    <span class="k">return</span> <span class="n">var</span>
 </pre></div>
 
     </div>
 </div>
 </div>
 
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p><strong>训练模型</strong></p>
-
-</div>
-</div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[7]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">adaboost</span> <span class="o">=</span> <span class="n">Adaboost</span><span class="p">()</span>
-<span class="n">adaboost</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">RegressDT</span><span class="p">(</span><span class="n">DecisionTree</span><span class="p">):</span>
+    
+    <span class="k">def</span> <span class="nf">__cal_var_reduct</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_train</span><span class="p">,</span> <span class="n">y1</span><span class="p">,</span> <span class="n">y2</span><span class="p">):</span>
+        
+        <span class="n">var_tot</span> <span class="o">=</span> <span class="n">cal_var</span><span class="p">(</span><span class="n">y_train</span><span class="p">)</span>
+        <span class="n">var_1</span> <span class="o">=</span> <span class="n">cal_var</span><span class="p">(</span><span class="n">y1</span><span class="p">)</span>
+        <span class="n">var_2</span> <span class="o">=</span> <span class="n">cal_var</span><span class="p">(</span><span class="n">y2</span><span class="p">)</span>
+        
+        <span class="n">frac_1</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y1</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_train</span><span class="p">)</span>
+        <span class="n">frac_2</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">y2</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_train</span><span class="p">)</span>
+        
+        <span class="n">var_reduct</span> <span class="o">=</span> <span class="n">var_tot</span> <span class="o">-</span> <span class="p">(</span><span class="n">frac_1</span> <span class="o">*</span> <span class="n">var_1</span> <span class="o">+</span> <span class="n">frac_2</span> <span class="o">*</span> <span class="n">var_2</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="nb">sum</span><span class="p">(</span><span class="n">var_reduct</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">__mean</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y</span><span class="p">):</span>
+        <span class="n">value</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">value</span> <span class="k">if</span> <span class="nb">len</span><span class="p">(</span><span class="n">value</span><span class="p">)</span> <span class="o">&gt;</span> <span class="mi">1</span> <span class="k">else</span> <span class="n">value</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cal_impurity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__cal_var_reduct</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_cal_leaf_val</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">__mean</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">RegressDT</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
 </pre></div>
 
     </div>
@@ -13478,7 +13472,8 @@ interpreter: 64bit
 <div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
 </div><div class="inner_cell">
 <div class="text_cell_render border-box-sizing rendered_html">
-<p><strong>预测与可视化</strong></p>
+<p><strong>辅助类设计</strong></p>
+<p>GBDT 本身是回归树，但是输出的连续值既可以用于连续值预测，也可以用于分类。两类任务对应于平方损失和对数损失</p>
 
 </div>
 </div>
@@ -13488,30 +13483,17 @@ interpreter: 64bit
 <div class="prompt input_prompt">In&nbsp;[8]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">y_pred</span> <span class="o">=</span> <span class="n">adaboost</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
-<span class="n">accuracy</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">y_pred</span> <span class="o">==</span> <span class="n">y_test</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">y_test</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Accuracy: </span><span class="si">%f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">accuracy</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">SquareLoss</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">pass</span>
+    
+    <span class="k">def</span> <span class="nf">loss</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">):</span>
+        <span class="k">return</span> <span class="mf">0.5</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">power</span><span class="p">((</span><span class="n">y_true</span> <span class="o">-</span> <span class="n">y_pred</span><span class="p">),</span><span class="mi">2</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">gradient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_true</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">):</span>
+        <span class="k">return</span> <span class="o">-</span><span class="p">(</span><span class="n">y_true</span> <span class="o">-</span> <span class="n">y_pred</span><span class="p">)</span>
 </pre></div>
 
     </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-<div class="output_subarea output_stream output_stdout output_text">
-<pre>Accuracy: 0.906542
-</pre>
-</div>
-</div>
-
 </div>
 </div>
 
@@ -13521,171 +13503,159 @@ interpreter: 64bit
 <div class="prompt input_prompt">In&nbsp;[9]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">transform</span><span class="p">(</span><span class="n">X</span><span class="p">,</span> <span class="n">dim</span><span class="p">):</span>
-    <span class="sd">&#39;&#39;&#39;PCA降维转换&#39;&#39;&#39;</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">CrossEntropy</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="k">pass</span>
     
-    <span class="n">n_samples</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="n">covariance_matrix</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">/</span> <span class="p">(</span><span class="n">n_samples</span> <span class="o">-</span> <span class="mi">1</span><span class="p">))</span> <span class="o">*</span> <span class="p">(</span><span class="n">X</span> <span class="o">-</span> <span class="n">X</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span><span class="o">.</span><span class="n">T</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">X</span> <span class="o">-</span> <span class="n">X</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
-    <span class="n">covariance_matrix</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">covariance_matrix</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="nb">float</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">loss</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_true</span><span class="p">,</span> <span class="n">p_pred</span><span class="p">):</span>
+        
+        <span class="c1"># 防止除 0</span>
+        <span class="n">p_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">p_pred</span><span class="p">,</span> <span class="mf">1e-10</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="mf">1e-10</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="o">-</span><span class="n">y_true</span> <span class="o">*</span> <span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="n">p_pred</span><span class="p">)</span> <span class="o">-</span> <span class="p">(</span><span class="mi">1</span><span class="o">-</span><span class="n">y_true</span><span class="p">)</span><span class="o">*</span><span class="n">np</span><span class="o">.</span><span class="n">log</span><span class="p">(</span><span class="mi">1</span><span class="o">-</span> <span class="n">p_pred</span><span class="p">)</span>
     
-    <span class="c1"># 计算特征值和特征向量</span>
-    <span class="n">eigenvalues</span><span class="p">,</span> <span class="n">eigenvectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linalg</span><span class="o">.</span><span class="n">eig</span><span class="p">(</span><span class="n">covariance_matrix</span><span class="p">)</span>
-    
-    <span class="c1"># </span>
-    <span class="n">idx</span> <span class="o">=</span> <span class="n">eigenvalues</span><span class="o">.</span><span class="n">argsort</span><span class="p">()[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
-    <span class="n">eigenvalues</span> <span class="o">=</span> <span class="n">eigenvalues</span><span class="p">[</span><span class="n">idx</span><span class="p">][:</span><span class="n">dim</span><span class="p">]</span>
-    <span class="n">eigenvectors</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">atleast_1d</span><span class="p">(</span><span class="n">eigenvectors</span><span class="p">[:,</span><span class="n">idx</span><span class="p">])[:,:</span><span class="n">dim</span><span class="p">]</span>
-    
-    <span class="n">X_transformed</span> <span class="o">=</span> <span class="n">X</span><span class="o">.</span><span class="n">dot</span><span class="p">(</span><span class="n">eigenvectors</span><span class="p">)</span>
-    
-    <span class="k">return</span> <span class="n">X_transformed</span>
+    <span class="k">def</span> <span class="nf">gradient</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">y_true</span><span class="p">,</span> <span class="n">p_pred</span><span class="p">):</span>
+        
+        <span class="n">p_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">p_pred</span><span class="p">,</span> <span class="mf">1e-10</span><span class="p">,</span> <span class="mi">1</span> <span class="o">-</span> <span class="mf">1e-10</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="o">-</span><span class="p">(</span><span class="n">y_true</span> <span class="o">/</span> <span class="n">p_pred</span><span class="p">)</span> <span class="o">+</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">y_true</span><span class="p">)</span> <span class="o">/</span> <span class="p">(</span><span class="mi">1</span> <span class="o">-</span> <span class="n">p_pred</span><span class="p">)</span>
 </pre></div>
 
     </div>
 </div>
 </div>
 
+</div>
+<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
+</div><div class="inner_cell">
+<div class="text_cell_render border-box-sizing rendered_html">
+<p><strong>GBDT</strong></p>
+
+</div>
+</div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[10]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="n">cmap</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">get_cmap</span><span class="p">(</span><span class="s1">&#39;viridis&#39;</span><span class="p">)</span>
-
-<span class="n">X_transformed</span> <span class="o">=</span> <span class="n">transform</span><span class="p">(</span><span class="n">X_test</span><span class="p">,</span> <span class="n">dim</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
-<span class="n">x1</span> <span class="o">=</span> <span class="n">X_transformed</span><span class="p">[:,</span><span class="mi">0</span><span class="p">]</span>
-<span class="n">x2</span> <span class="o">=</span> <span class="n">X_transformed</span><span class="p">[:,</span><span class="mi">1</span><span class="p">]</span>
-<span class="n">class_distr</span> <span class="o">=</span> <span class="p">[]</span>
-
-<span class="n">y</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="nb">int</span><span class="p">)</span>
-
-<span class="n">colors</span> <span class="o">=</span> <span class="p">[</span><span class="n">cmap</span><span class="p">(</span><span class="n">i</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">y</span><span class="p">)))]</span>
-
-<span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">l</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">unique</span><span class="p">(</span><span class="n">y</span><span class="p">)):</span>
-    <span class="n">_x1</span> <span class="o">=</span> <span class="n">x1</span><span class="p">[</span><span class="n">y</span><span class="o">==</span><span class="n">l</span><span class="p">]</span>
-    <span class="n">_x2</span> <span class="o">=</span> <span class="n">x2</span><span class="p">[</span><span class="n">y</span><span class="o">==</span><span class="n">l</span><span class="p">]</span>
-    <span class="n">_y</span> <span class="o">=</span> <span class="n">y</span><span class="p">[</span><span class="n">y</span><span class="o">==</span><span class="n">l</span><span class="p">]</span>
-    <span class="n">class_distr</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">_x1</span><span class="p">,</span> <span class="n">_x2</span><span class="p">,</span> <span class="n">color</span> <span class="o">=</span> <span class="n">colors</span><span class="p">[</span><span class="n">i</span><span class="p">]))</span>
-
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">GBDT</span><span class="p">(</span><span class="nb">object</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;梯度提升分类树和梯度提升回归树的父类</span>
+<span class="sd">    </span>
+<span class="sd">    n_estimators:</span>
+<span class="sd">        学习器数量</span>
+<span class="sd">    learning_rate:</span>
+<span class="sd">        每一轮迭代步长</span>
+<span class="sd">    min_impurity:</span>
+<span class="sd">        收益阈值，低于该值时停止学习</span>
+<span class="sd">    min_split_num:</span>
+<span class="sd">        当叶子结点内样本数低于该值，停止学习</span>
+<span class="sd">    regression:</span>
+<span class="sd">        判断当前是回归还是分类问题    </span>
+<span class="sd">    &#39;&#39;&#39;</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_estimators</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">learning_rate</span><span class="o">=</span><span class="mf">0.3</span><span class="p">,</span> 
+                 <span class="n">min_split_num</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span> <span class="n">min_impurity</span><span class="o">=</span><span class="mf">1e-5</span><span class="p">,</span> <span class="n">regression</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_estimators</span> <span class="o">=</span> <span class="n">n_estimators</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span> <span class="o">=</span> <span class="n">learning_rate</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_split_num</span> <span class="o">=</span> <span class="n">min_split_num</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">min_impurity</span> <span class="o">=</span> <span class="n">min_impurity</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">regression</span> <span class="o">=</span> <span class="n">regression</span>
+        
+        <span class="c1"># 选择损失函数</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="o">=</span> <span class="n">SquareLoss</span><span class="p">()</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">regression</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">loss</span> <span class="o">=</span> <span class="n">CrossEntropy</span><span class="p">()</span>
+        
+        <span class="c1"># 初始化学习器</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">trees</span> <span class="o">=</span> <span class="p">[]</span>
+        <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">n_estimators</span><span class="p">):</span>
+            <span class="n">tree</span> <span class="o">=</span> <span class="n">RegressDT</span><span class="p">(</span><span class="n">min_split_num</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_split_num</span><span class="p">,</span> 
+                             <span class="n">min_impurity</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">min_impurity</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">tree</span><span class="p">)</span>
     
-<span class="n">perc</span> <span class="o">=</span> <span class="mi">100</span><span class="o">*</span><span class="n">accuracy</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">suptitle</span><span class="p">(</span><span class="s2">&quot;Adaboost&quot;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">title</span><span class="p">(</span><span class="s2">&quot;Accuracy: </span><span class="si">%.1f%%</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="n">perc</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
-
-<span class="n">plt</span><span class="o">.</span><span class="n">xlabel</span><span class="p">(</span><span class="s2">&quot;Principal Component 1&quot;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">ylabel</span><span class="p">(</span><span class="s2">&quot;Principal Component 2&quot;</span><span class="p">)</span>
-<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">):</span>
+        
+        <span class="c1"># 初始化预测值为一常数</span>
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">full</span><span class="p">(</span><span class="n">y_train</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">y</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">0</span><span class="p">))</span>
+        
+        <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_estimators</span><span class="p">):</span>
+            <span class="n">gradient</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">loss</span><span class="o">.</span><span class="n">gradient</span><span class="p">(</span><span class="n">y_train</span><span class="p">,</span> <span class="n">y_pred</span><span class="p">)</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">gradient</span><span class="p">)</span>
+            <span class="n">gain</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_train</span><span class="p">)</span>
+            
+            <span class="c1"># 负梯度更新</span>
+            <span class="n">y_pred</span> <span class="o">-=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">,</span> <span class="n">gain</span><span class="p">)</span>
+    
+    <span class="k">def</span> <span class="nf">predict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_test</span><span class="p">):</span>
+        
+        <span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([])</span>
+        
+        <span class="k">for</span> <span class="n">tree</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">trees</span><span class="p">:</span>
+            
+            <span class="n">gain</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">X_test</span><span class="p">)</span>
+            <span class="n">gian</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">multiply</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">learning_rate</span><span class="p">,</span> <span class="n">gain</span><span class="p">)</span>
+            <span class="n">y_pred</span> <span class="o">-=</span> <span class="o">-</span><span class="n">gain</span> <span class="k">if</span> <span class="ow">not</span> <span class="n">y_pred</span><span class="o">.</span><span class="n">any</span><span class="p">()</span> <span class="k">else</span> <span class="n">y_pred</span> <span class="o">-</span> <span class="n">gain</span>
+    
+        <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">regression</span><span class="p">:</span>
+            
+            <span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">y_pred</span><span class="p">)</span> <span class="o">/</span> <span class="n">np</span><span class="o">.</span><span class="n">expand_dims</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">sum</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="n">y_pred</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">),</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+            
+            <span class="n">y_pred</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">argmax</span><span class="p">(</span><span class="n">y_pred</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+        
+        <span class="k">return</span> <span class="n">y_pred</span>
 </pre></div>
 
     </div>
 </div>
 </div>
 
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt"></div>
-
-
-
-
-<div class="output_png output_subarea ">
-<img src="data:image/png;base64,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
-"
->
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<h2 id="sklearn-&#37324;&#30340;-Adaboost">sklearn &#37324;&#30340; Adaboost<a class="anchor-link" href="#sklearn-&#37324;&#30340;-Adaboost">&#182;</a></h2>
-</div>
-</div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[11]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="kn">from</span> <span class="nn">sklearn.ensemble</span> <span class="k">import</span> <span class="n">AdaBoostClassifier</span>
-
-<span class="bp">cls</span> <span class="o">=</span> <span class="n">AdaBoostClassifier</span><span class="p">(</span><span class="n">n_estimators</span> <span class="o">=</span> <span class="mi">10</span><span class="p">,</span> <span class="n">learning_rate</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">)</span>
-<span class="bp">cls</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">class</span> <span class="nc">GBDTRegressor</span><span class="p">(</span><span class="n">GBDT</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_estimators</span> <span class="o">=</span> <span class="mi">25</span><span class="p">,</span> <span class="n">learning_rate</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">min_split_num</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="n">min_var_red</span> <span class="o">=</span> <span class="mf">1e-7</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">GBDTRegressor</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">n_estimators</span><span class="o">=</span><span class="n">n_estimators</span><span class="p">,</span>
+                                            <span class="n">learning_rate</span><span class="o">=</span><span class="n">learning_rate</span><span class="p">,</span>
+                                           <span class="n">min_impurit</span> <span class="o">=</span> <span class="n">min_var_red</span><span class="p">,</span>
+                                            <span class="n">min_split_num</span> <span class="o">=</span> <span class="n">min_split_num</span><span class="p">,</span>
+                                            <span class="n">regression</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 
     </div>
 </div>
 </div>
 
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt output_prompt">Out[11]:</div>
-
-
-
-
-<div class="output_text output_subarea output_execute_result">
-<pre>AdaBoostClassifier(algorithm=&#39;SAMME.R&#39;, base_estimator=None, learning_rate=0.5,
-                   n_estimators=10, random_state=None)</pre>
-</div>
-
-</div>
-
-</div>
-</div>
-
-</div>
-<div class="cell border-box-sizing text_cell rendered"><div class="prompt input_prompt">
-</div><div class="inner_cell">
-<div class="text_cell_render border-box-sizing rendered_html">
-<p>scikit-learn 实现了两种 Adaboost 分类算法，SAMME 和 SAMME.R。两者的主要区别是弱学习器权重的度量，SAMME 用样本集分类效果作为弱学习器权重，而SAMME.R 使用分类预测概率值来作为弱学习器权重。后者是连续值所以迭代一般比 SAMME 快，因此 AdaBoostClassifier 的默认算法 algorithm 的值也是SAMME.R。注意，使用 SAMME.R 时弱分类学习器参数 base_estimator 必须限制使用支持概率预测的分类器。SAMME 算法则没有这个限制。</p>
-
-</div>
-</div>
 </div>
 <div class="cell border-box-sizing code_cell rendered">
 <div class="input">
 <div class="prompt input_prompt">In&nbsp;[12]:</div>
 <div class="inner_cell">
     <div class="input_area">
-<div class=" highlight hl-ipython3"><pre><span></span><span class="bp">cls</span><span class="o">.</span><span class="n">score</span><span class="p">(</span><span class="n">X_test</span><span class="p">,</span> <span class="n">y_test</span><span class="p">)</span>
+<div class=" highlight hl-ipython3"><pre><span></span><span class="k">def</span> <span class="nf">to_categorical</span><span class="p">(</span><span class="n">x</span><span class="p">,</span> <span class="n">n_col</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+    <span class="sd">&#39;&#39;&#39;独热编码&#39;&#39;&#39;</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">n_col</span><span class="p">:</span>
+        <span class="n">n_col</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">amax</span><span class="p">(</span><span class="n">x</span><span class="p">)</span> <span class="o">+</span> <span class="mi">1</span>
+    <span class="n">one_hot</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">n_col</span><span class="p">))</span>
+    <span class="n">one_hot</span><span class="p">[</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">x</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mi">0</span><span class="p">]),</span> <span class="n">x</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span>
+    <span class="k">return</span> <span class="n">one_hot</span>
+
+<span class="k">class</span> <span class="nc">GBDTClassifier</span><span class="p">(</span><span class="n">GBDT</span><span class="p">):</span>
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">n_estimators</span> <span class="o">=</span> <span class="mi">25</span><span class="p">,</span> <span class="n">learning_rate</span> <span class="o">=</span> <span class="mf">0.5</span><span class="p">,</span> <span class="n">min_split_num</span> <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>
+                <span class="n">min_info_gain</span> <span class="o">=</span> <span class="mf">1e-7</span><span class="p">):</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">GBDTClassifier</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">n_estimators</span> <span class="o">=</span> <span class="n">n_estimators</span><span class="p">,</span>
+                                            <span class="n">learning_rate</span> <span class="o">=</span> <span class="n">learning_rate</span><span class="p">,</span>
+                                            <span class="n">min_split_num</span> <span class="o">=</span> <span class="n">min_split_num</span><span class="p">,</span>
+                                            <span class="n">min_impurity</span> <span class="o">=</span> <span class="n">min_info_gain</span><span class="p">,</span>
+                                            <span class="n">regression</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span>
+    <span class="k">def</span> <span class="nf">fit</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">):</span>
+        <span class="n">y_train</span> <span class="o">=</span> <span class="n">to_categorical</span><span class="p">(</span><span class="n">y_train</span><span class="p">)</span>
+        <span class="nb">super</span><span class="p">(</span><span class="n">GBDTClassifier</span><span class="p">,</span> <span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">fit</span><span class="p">(</span><span class="n">X_train</span><span class="p">,</span> <span class="n">y_train</span><span class="p">)</span>
 </pre></div>
 
     </div>
-</div>
-</div>
-
-<div class="output_wrapper">
-<div class="output">
-
-
-<div class="output_area">
-
-    <div class="prompt output_prompt">Out[12]:</div>
-
-
-
-
-<div class="output_text output_subarea output_execute_result">
-<pre>0.9439252336448598</pre>
-</div>
-
-</div>
-
 </div>
 </div>
 
