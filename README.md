@@ -1,7 +1,7 @@
 # 统计学习方法
 [![license](https://img.shields.io/badge/license-MIT-blue)](https://github.com/sbl-sdsc/mmtf-spark/blob/master/LICENSE)  ![process](https://img.shields.io/badge/process-building-yellow)
 
-李航博士《统计学习方法》（第2版）阅读笔记，带有部分习题解答。基于 python 3.6 实现并补充了一些模型
+李航博士《统计学习方法》（第2版）阅读笔记，带有部分习题解答。基于 python 3.7 实现并补充了一些模型
 
 | 目录                                                         | Jupyter NoteBook                                             | HTML                                                         |
 | ------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------------------------------------ |
@@ -17,4 +17,5 @@
 | --[8.2 XGBoost 和 LightGBM](https://nbviewer.jupyter.org/github/LibertyDream/statistical_learning_method/blob/master/notebook/8.2XGBoost_and_LightGBM.ipynb) | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LibertyDream/statistical_learning_method/master?filepath=notebook%2F8.2XGBoost_and_LightGBM.ipynb) | [HTML](https://libertydream.github.io/statistical_learning_method/notebook/8.2XGBoost_and_LightGBM.html) |
 | [9.CRF](https://nbviewer.jupyter.org/github/LibertyDream/statistical_learning_method/blob/master/notebook/9.crf.ipynb) | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LibertyDream/statistical_learning_method/master?filepath=notebook%2F9.crf.ipynb) | [HTML](https://libertydream.github.io/statistical_learning_method/notebook/9.crf.html) |
 | [10.k 均值聚类](https://nbviewer.jupyter.org/github/LibertyDream/statistical_learning_method/blob/master/notebook/10.k_means.ipynb) | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LibertyDream/statistical_learning_method/master?filepath=notebook%2F10.k_means.ipynb) | [HTML](https://libertydream.github.io/statistical_learning_method/notebook/10.k_means.html) |
+| [11.潜在狄利克雷分配(LDA)](https://nbviewer.jupyter.org/github/LibertyDream/statistical_learning_method/blob/master/notebook/11.LDA.ipynb) | [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/LibertyDream/statistical_learning_method/master?filepath=notebook%2F11.LDA.ipynb) | [HTML](https://libertydream.github.io/statistical_learning_method/notebook/11.LDA.html) |
 
